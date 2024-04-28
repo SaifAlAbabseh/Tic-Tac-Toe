@@ -10,35 +10,61 @@ import java.util.TimerTask;
 
 public class TicTacToe extends JFrame {
     private JButton[] gameButtons;
-    private boolean isGameDone;
-    private final JLabel mainLabel;
+    private final JLabel leftPlayerLabel, mainLabel, rightPlayerLabel;
     private final Listener listener;
+    private String playerSymbol, botSymbol;
 
     public TicTacToe() {
         listener = new Listener();
+        JPanel northPanel = new JPanel(new GridLayout(1, 3));
         JPanel mainPanel = new JPanel(new GridLayout(3, 3));
         JPanel southPanel = new JPanel(new FlowLayout());
+        southPanel.setBackground(Color.WHITE);
         JButton restartButton = new JButton("Restart Game");
-        mainLabel = new JLabel("Your Turn");
+        mainLabel = new JLabel();
+        leftPlayerLabel = new JLabel();
+        rightPlayerLabel = new JLabel();
 
         initRestartButton(restartButton);
         initGameButtons(mainPanel);
-        styleMainLabel();
+        styleLabel(leftPlayerLabel, Color.BLACK);
+        styleLabel(mainLabel, Color.RED);
+        styleLabel(rightPlayerLabel, Color.BLACK);
 
+        northPanel.add(leftPlayerLabel);
+        northPanel.add(mainLabel);
+        northPanel.add(rightPlayerLabel);
         southPanel.add(restartButton);
         add(mainPanel);
-        add(mainLabel, BorderLayout.NORTH);
+        add(northPanel, BorderLayout.NORTH);
         add(southPanel, BorderLayout.SOUTH);
 
         initFrame();
+        initGame();
     }
 
-    private void styleMainLabel() {
-        mainLabel.setForeground(Color.RED);
-        mainLabel.setHorizontalAlignment(SwingConstants.CENTER);
-        mainLabel.setFont(new Font("Arial", Font.BOLD | Font.ITALIC, 30));
-        mainLabel.setOpaque(true);
-        mainLabel.setBackground(Color.WHITE);
+    private void initGame() {
+        // 0 player starts | 1 BOT starts
+        int whoStarts = (int) (Math.random() * 2);
+        playerSymbol = (whoStarts == 0) ? "X" : "O";
+        botSymbol = (whoStarts == 1) ? "X" : "O";
+        String whoStartsLabel = (whoStarts == 0) ? "<html><label>You<br>" + playerSymbol + "</label></html>" : "<html><label>BOT<br>" + botSymbol + "</label></html>";
+        leftPlayerLabel.setText(whoStartsLabel);
+        rightPlayerLabel.setText((whoStartsLabel.contains("You")) ? "<html><label>BOT<br>" + botSymbol + "</label></html>" : "<html><label>You<br>" + playerSymbol + "</label></html>");
+        mainLabel.setText((whoStarts == 0) ? "Your Turn" : "BOT Turn");
+        if (whoStarts == 1) {
+            enableGameButtons(false);
+            botTurn();
+            enableGameButtons(true);
+        }
+    }
+
+    private void styleLabel(JLabel label, Color fontColor) {
+        label.setForeground(fontColor);
+        label.setHorizontalAlignment(SwingConstants.CENTER);
+        label.setFont(new Font("Arial", Font.BOLD | Font.ITALIC, 30));
+        label.setOpaque(true);
+        label.setBackground(Color.WHITE);
     }
 
     private void initRestartButton(JButton restartButton) {
@@ -75,14 +101,13 @@ public class TicTacToe extends JFrame {
     }
 
     private void enableGameButtons(boolean enable) {
-        for (JButton gameButton: gameButtons) {
+        for (JButton gameButton : gameButtons) {
             gameButton.setBackground(Color.WHITE);
-            if(enable) {
+            if (enable) {
                 gameButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
                 gameButton.addMouseListener(listener);
                 gameButton.addActionListener(listener);
-            }
-            else {
+            } else {
                 gameButton.setCursor(null);
                 gameButton.removeMouseListener(listener);
                 gameButton.removeActionListener(listener);
@@ -91,12 +116,11 @@ public class TicTacToe extends JFrame {
     }
 
     private void endGame(Object[] places, String description) {
-        isGameDone = true;
         enableGameButtons(false);
         mainLabel.setText(description);
-        if(places[0] != null) {
-            for(Object place: places) {
-                ((JButton)place).setBackground(Color.gray);
+        if (places[0] != null) {
+            for (Object place : places) {
+                ((JButton) place).setBackground(Color.gray);
             }
         }
     }
@@ -107,11 +131,11 @@ public class TicTacToe extends JFrame {
 
     private void botTurn() {
         mainLabel.setText("BOT Turn");
-        if (isWin("O")[0] == null && isWin("X")[0] == null && !isTie()) {
+        if (isWin(botSymbol)[0] == null && isWin(playerSymbol)[0] == null && !isTie()) {
             int randomPos = botIntelligence();
             if (randomPos == -1) {
                 java.util.List<Integer> possiblePlaces = getPossiblePlaces();
-                randomPos = possiblePlaces.get((int)(Math.random() * possiblePlaces.size()));
+                randomPos = possiblePlaces.get((int) (Math.random() * possiblePlaces.size()));
             }
             this.setEnabled(false);
             Timer timer = createTimerForBOT(randomPos);
@@ -121,17 +145,20 @@ public class TicTacToe extends JFrame {
 
     private java.util.List<Integer> getPossiblePlaces() {
         java.util.List<Integer> possiblePlaces = new ArrayList<>();
-        for(int i = 0; i < gameButtons.length; i++) {
-            if(gameButtons[i].getText().isEmpty()) possiblePlaces.add(i);
+        for (int i = 0; i < gameButtons.length; i++) {
+            if (gameButtons[i].getText().isEmpty()) possiblePlaces.add(i);
         }
         return possiblePlaces;
     }
 
     private Timer createTimerForBOT(int randomPos) {
         final Timer timer = new Timer(2000, e -> {
-            gameButtons[randomPos].setText("O");
+            gameButtons[randomPos].setText(botSymbol);
             gameButtons[randomPos].setForeground(Color.RED);
-            Object[] places = isWin("O");
+            gameButtons[randomPos].removeActionListener(listener);
+            gameButtons[randomPos].removeMouseListener(listener);
+            gameButtons[randomPos].setCursor(null);
+            Object[] places = isWin(botSymbol);
             if (places[0] != null) endGame(places, "BOT Wins");
             else if (isTie()) endGame(places, "TIE!");
             else mainLabel.setText("Your Turn");
@@ -151,7 +178,7 @@ public class TicTacToe extends JFrame {
         for (JButton jButton : gameButtons) {
             if (jButton.getText().isEmpty()) ifTie = false;
         }
-        return ifTie && isWin("O")[0] == null && isWin("X")[0] == null;
+        return ifTie && isWin(botSymbol)[0] == null && isWin(playerSymbol)[0] == null;
     }
 
     private Object[] isWin(String symbol) {
@@ -184,7 +211,7 @@ public class TicTacToe extends JFrame {
             response[0] = gameButtons[0];
             response[1] = gameButtons[4];
             response[2] = gameButtons[8];
-        } else if(gameButtons[2].getText().equals(symbol) && gameButtons[4].getText().equals(symbol) && gameButtons[6].getText().equals(symbol)) {
+        } else if (gameButtons[2].getText().equals(symbol) && gameButtons[4].getText().equals(symbol) && gameButtons[6].getText().equals(symbol)) {
             response[0] = gameButtons[2];
             response[1] = gameButtons[4];
             response[2] = gameButtons[6];
@@ -197,22 +224,23 @@ public class TicTacToe extends JFrame {
         public void actionPerformed(ActionEvent event) {
             JButton clickedButton = (JButton) event.getSource();
             if (clickedButton.getActionCommand().equals("gameButton")) {
-                if (!(clickedButton.getText().equals("X") || clickedButton.getText().equals("O")) && !isGameDone) {
-                    clickedButton.setText("X");
-                    clickedButton.setForeground(Color.BLUE);
-                    clickedButton.setBackground(Color.WHITE);
+                clickedButton.setText(playerSymbol);
+                clickedButton.setForeground(Color.BLUE);
+                clickedButton.setBackground(Color.WHITE);
+                clickedButton.removeActionListener(listener);
+                clickedButton.removeMouseListener(listener);
+                clickedButton.setCursor(null);
 
-                    Object[] places = isWin("X");
-                    if (places[0] != null) endGame(places, "You Win");
-                    else if (isTie()) endGame(places, "TIE!");
-                    else botTurn();
-                }
+                Object[] places = isWin(playerSymbol);
+                if (places[0] != null) endGame(places, "You Win");
+                else if (isTie()) endGame(places, "TIE!");
+                else botTurn();
             } else if (clickedButton.getActionCommand().equals("Restart Game")) {
-                isGameDone = false;
                 for (JButton gameButton : gameButtons) {
                     gameButton.setText("");
                     gameButton.setBackground(Color.WHITE);
                 }
+                initGame();
                 enableGameButtons(true);
             }
         }
@@ -239,75 +267,75 @@ public class TicTacToe extends JFrame {
 
     private int botIntelligence() {
         //Index 0
-        if ((gameButtons[0].getText().isEmpty()) && ((gameButtons[1].getText().equals("O") && gameButtons[2].getText().equals("O")) || (gameButtons[3].getText().equals("O") && gameButtons[6].getText().equals("O")) || (gameButtons[4].getText().equals("O") && gameButtons[8].getText().equals("O")))) {
+        if ((gameButtons[0].getText().isEmpty()) && ((gameButtons[1].getText().equals(botSymbol) && gameButtons[2].getText().equals(botSymbol)) || (gameButtons[3].getText().equals(botSymbol) && gameButtons[6].getText().equals(botSymbol)) || (gameButtons[4].getText().equals(botSymbol) && gameButtons[8].getText().equals(botSymbol)))) {
             return 0;
         }
         //Index 1
-        else if ((gameButtons[1].getText().isEmpty()) && ((gameButtons[0].getText().equals("O") && gameButtons[2].getText().equals("O")) || (gameButtons[4].getText().equals("O") && gameButtons[7].getText().equals("O")))) {
+        else if ((gameButtons[1].getText().isEmpty()) && ((gameButtons[0].getText().equals(botSymbol) && gameButtons[2].getText().equals(botSymbol)) || (gameButtons[4].getText().equals(botSymbol) && gameButtons[7].getText().equals(botSymbol)))) {
             return 1;
         }
         //Index 2
-        else if ((gameButtons[2].getText().isEmpty()) && ((gameButtons[0].getText().equals("O") && gameButtons[1].getText().equals("O")) || (gameButtons[5].getText().equals("O") && gameButtons[8].getText().equals("O")) || (gameButtons[4].getText().equals("O") && gameButtons[6].getText().equals("O")))) {
+        else if ((gameButtons[2].getText().isEmpty()) && ((gameButtons[0].getText().equals(botSymbol) && gameButtons[1].getText().equals(botSymbol)) || (gameButtons[5].getText().equals(botSymbol) && gameButtons[8].getText().equals(botSymbol)) || (gameButtons[4].getText().equals(botSymbol) && gameButtons[6].getText().equals(botSymbol)))) {
             return 2;
         }
         //Index 3
-        else if ((gameButtons[3].getText().isEmpty()) && ((gameButtons[0].getText().equals("O") && gameButtons[6].getText().equals("O")) || (gameButtons[4].getText().equals("O") && gameButtons[5].getText().equals("O")))) {
+        else if ((gameButtons[3].getText().isEmpty()) && ((gameButtons[0].getText().equals(botSymbol) && gameButtons[6].getText().equals(botSymbol)) || (gameButtons[4].getText().equals(botSymbol) && gameButtons[5].getText().equals(botSymbol)))) {
             return 3;
         }
         //Index 4
-        else if ((gameButtons[4].getText().isEmpty()) && ((gameButtons[1].getText().equals("O") && gameButtons[7].getText().equals("O")) || (gameButtons[3].getText().equals("O") && gameButtons[5].getText().equals("O")) || (gameButtons[2].getText().equals("O") && gameButtons[6].getText().equals("O")) || (gameButtons[0].getText().equals("O") && gameButtons[8].getText().equals("O")))) {
+        else if ((gameButtons[4].getText().isEmpty()) && ((gameButtons[1].getText().equals(botSymbol) && gameButtons[7].getText().equals(botSymbol)) || (gameButtons[3].getText().equals(botSymbol) && gameButtons[5].getText().equals(botSymbol)) || (gameButtons[2].getText().equals(botSymbol) && gameButtons[6].getText().equals(botSymbol)) || (gameButtons[0].getText().equals(botSymbol) && gameButtons[8].getText().equals(botSymbol)))) {
             return 4;
         }
         //Index 5
-        else if ((gameButtons[5].getText().isEmpty()) && ((gameButtons[2].getText().equals("O") && gameButtons[8].getText().equals("O")) || (gameButtons[3].getText().equals("O") && gameButtons[4].getText().equals("O")))) {
+        else if ((gameButtons[5].getText().isEmpty()) && ((gameButtons[2].getText().equals(botSymbol) && gameButtons[8].getText().equals(botSymbol)) || (gameButtons[3].getText().equals(botSymbol) && gameButtons[4].getText().equals(botSymbol)))) {
             return 5;
         }
         //Index 6
-        else if ((gameButtons[6].getText().isEmpty()) && ((gameButtons[0].getText().equals("O") && gameButtons[3].getText().equals("O")) || (gameButtons[7].getText().equals("O") && gameButtons[8].getText().equals("O")) || (gameButtons[2].getText().equals("O") && gameButtons[4].getText().equals("O")))) {
+        else if ((gameButtons[6].getText().isEmpty()) && ((gameButtons[0].getText().equals(botSymbol) && gameButtons[3].getText().equals(botSymbol)) || (gameButtons[7].getText().equals(botSymbol) && gameButtons[8].getText().equals(botSymbol)) || (gameButtons[2].getText().equals(botSymbol) && gameButtons[4].getText().equals(botSymbol)))) {
             return 6;
         }
         //Index 7
-        else if ((gameButtons[7].getText().isEmpty()) && ((gameButtons[1].getText().equals("O") && gameButtons[4].getText().equals("O")) || (gameButtons[6].getText().equals("O") && gameButtons[8].getText().equals("O")))) {
+        else if ((gameButtons[7].getText().isEmpty()) && ((gameButtons[1].getText().equals(botSymbol) && gameButtons[4].getText().equals(botSymbol)) || (gameButtons[6].getText().equals(botSymbol) && gameButtons[8].getText().equals(botSymbol)))) {
             return 7;
         }
         //Index 8
-        else if ((gameButtons[8].getText().isEmpty()) && ((gameButtons[2].getText().equals("O") && gameButtons[5].getText().equals("O")) || (gameButtons[0].getText().equals("O") && gameButtons[4].getText().equals("O")) || (gameButtons[6].getText().equals("O") && gameButtons[7].getText().equals("O")))) {
+        else if ((gameButtons[8].getText().isEmpty()) && ((gameButtons[2].getText().equals(botSymbol) && gameButtons[5].getText().equals(botSymbol)) || (gameButtons[0].getText().equals(botSymbol) && gameButtons[4].getText().equals(botSymbol)) || (gameButtons[6].getText().equals(botSymbol) && gameButtons[7].getText().equals(botSymbol)))) {
             return 8;
         }
         //Index 0
-        else if ((gameButtons[0].getText().isEmpty()) && ((gameButtons[1].getText().equals("X") && gameButtons[2].getText().equals("X")) || (gameButtons[3].getText().equals("X") && gameButtons[6].getText().equals("X")) || (gameButtons[4].getText().equals("X") && gameButtons[8].getText().equals("X")))) {
+        else if ((gameButtons[0].getText().isEmpty()) && ((gameButtons[1].getText().equals(playerSymbol) && gameButtons[2].getText().equals(playerSymbol)) || (gameButtons[3].getText().equals(playerSymbol) && gameButtons[6].getText().equals(playerSymbol)) || (gameButtons[4].getText().equals(playerSymbol) && gameButtons[8].getText().equals(playerSymbol)))) {
             return 0;
         }
         //Index 1
-        else if ((gameButtons[1].getText().isEmpty()) && ((gameButtons[0].getText().equals("X") && gameButtons[2].getText().equals("X")) || (gameButtons[4].getText().equals("X") && gameButtons[7].getText().equals("X")))) {
+        else if ((gameButtons[1].getText().isEmpty()) && ((gameButtons[0].getText().equals(playerSymbol) && gameButtons[2].getText().equals(playerSymbol)) || (gameButtons[4].getText().equals(playerSymbol) && gameButtons[7].getText().equals(playerSymbol)))) {
             return 1;
         }
         //Index 2
-        else if ((gameButtons[2].getText().isEmpty()) && ((gameButtons[0].getText().equals("X") && gameButtons[1].getText().equals("X")) || (gameButtons[5].getText().equals("X") && gameButtons[8].getText().equals("X")) || (gameButtons[4].getText().equals("X") && gameButtons[6].getText().equals("X")))) {
+        else if ((gameButtons[2].getText().isEmpty()) && ((gameButtons[0].getText().equals(playerSymbol) && gameButtons[1].getText().equals(playerSymbol)) || (gameButtons[5].getText().equals(playerSymbol) && gameButtons[8].getText().equals(playerSymbol)) || (gameButtons[4].getText().equals(playerSymbol) && gameButtons[6].getText().equals(playerSymbol)))) {
             return 2;
         }
         //Index 3
-        else if ((gameButtons[3].getText().isEmpty()) && ((gameButtons[0].getText().equals("X") && gameButtons[6].getText().equals("X")) || (gameButtons[4].getText().equals("X") && gameButtons[5].getText().equals("X")))) {
+        else if ((gameButtons[3].getText().isEmpty()) && ((gameButtons[0].getText().equals(playerSymbol) && gameButtons[6].getText().equals(playerSymbol)) || (gameButtons[4].getText().equals(playerSymbol) && gameButtons[5].getText().equals(playerSymbol)))) {
             return 3;
         }
         //Index 4
-        else if ((gameButtons[4].getText().isEmpty()) && ((gameButtons[1].getText().equals("X") && gameButtons[7].getText().equals("X")) || (gameButtons[3].getText().equals("X") && gameButtons[5].getText().equals("X")) || (gameButtons[2].getText().equals("X") && gameButtons[6].getText().equals("X")) || (gameButtons[0].getText().equals("X") && gameButtons[8].getText().equals("X")))) {
+        else if ((gameButtons[4].getText().isEmpty()) && ((gameButtons[1].getText().equals(playerSymbol) && gameButtons[7].getText().equals(playerSymbol)) || (gameButtons[3].getText().equals(playerSymbol) && gameButtons[5].getText().equals(playerSymbol)) || (gameButtons[2].getText().equals(playerSymbol) && gameButtons[6].getText().equals(playerSymbol)) || (gameButtons[0].getText().equals(playerSymbol) && gameButtons[8].getText().equals(playerSymbol)))) {
             return 4;
         }
         //Index 5
-        else if ((gameButtons[5].getText().isEmpty()) && ((gameButtons[2].getText().equals("X") && gameButtons[8].getText().equals("X")) || (gameButtons[3].getText().equals("X") && gameButtons[4].getText().equals("X")))) {
+        else if ((gameButtons[5].getText().isEmpty()) && ((gameButtons[2].getText().equals(playerSymbol) && gameButtons[8].getText().equals(playerSymbol)) || (gameButtons[3].getText().equals(playerSymbol) && gameButtons[4].getText().equals(playerSymbol)))) {
             return 5;
         }
         //Index 6
-        else if ((gameButtons[6].getText().isEmpty()) && ((gameButtons[0].getText().equals("X") && gameButtons[3].getText().equals("X")) || (gameButtons[7].getText().equals("X") && gameButtons[8].getText().equals("X")) || (gameButtons[2].getText().equals("X") && gameButtons[4].getText().equals("X")))) {
+        else if ((gameButtons[6].getText().isEmpty()) && ((gameButtons[0].getText().equals(playerSymbol) && gameButtons[3].getText().equals(playerSymbol)) || (gameButtons[7].getText().equals(playerSymbol) && gameButtons[8].getText().equals(playerSymbol)) || (gameButtons[2].getText().equals(playerSymbol) && gameButtons[4].getText().equals(playerSymbol)))) {
             return 6;
         }
         //Index 7
-        else if ((gameButtons[7].getText().isEmpty()) && ((gameButtons[1].getText().equals("X") && gameButtons[4].getText().equals("X")) || (gameButtons[6].getText().equals("X") && gameButtons[8].getText().equals("X")))) {
+        else if ((gameButtons[7].getText().isEmpty()) && ((gameButtons[1].getText().equals(playerSymbol) && gameButtons[4].getText().equals(playerSymbol)) || (gameButtons[6].getText().equals(playerSymbol) && gameButtons[8].getText().equals(playerSymbol)))) {
             return 7;
         }
         //Index 8
-        else if ((gameButtons[8].getText().isEmpty()) && ((gameButtons[2].getText().equals("X") && gameButtons[5].getText().equals("X")) || (gameButtons[0].getText().equals("X") && gameButtons[4].getText().equals("X")) || (gameButtons[6].getText().equals("X") && gameButtons[7].getText().equals("X")))) {
+        else if ((gameButtons[8].getText().isEmpty()) && ((gameButtons[2].getText().equals(playerSymbol) && gameButtons[5].getText().equals(playerSymbol)) || (gameButtons[0].getText().equals(playerSymbol) && gameButtons[4].getText().equals(playerSymbol)) || (gameButtons[6].getText().equals(playerSymbol) && gameButtons[7].getText().equals(playerSymbol)))) {
             return 8;
         }
         return -1;
