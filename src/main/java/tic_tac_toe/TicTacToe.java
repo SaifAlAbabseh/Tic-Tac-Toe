@@ -10,12 +10,26 @@ import java.util.TimerTask;
 
 public class TicTacToe extends JFrame {
     private JButton[] gameButtons;
-    private final JLabel leftPlayerLabel, mainLabel, rightPlayerLabel;
+    private JLabel leftPlayerLabel, mainLabel, rightPlayerLabel;
     private final Listener listener;
     private String playerSymbol, botSymbol;
 
     public TicTacToe() {
         listener = new Listener();
+
+        JPanel startGameButtonPanel = new JPanel();
+        startGameButtonPanel.setBackground(Color.WHITE);
+        JButton startGameButton = new JButton("Start Game");
+
+        initStartButton(startGameButton);
+        startGameButtonPanel.add(startGameButton);
+
+        add(startGameButtonPanel);
+
+        initFrame();
+    }
+
+    private void initGameElements() {
         JPanel northPanel = new JPanel(new GridLayout(1, 3));
         JPanel mainPanel = new JPanel(new GridLayout(3, 3));
         JPanel southPanel = new JPanel(new FlowLayout());
@@ -39,7 +53,6 @@ public class TicTacToe extends JFrame {
         add(northPanel, BorderLayout.NORTH);
         add(southPanel, BorderLayout.SOUTH);
 
-        initFrame();
         initGame();
     }
 
@@ -52,11 +65,7 @@ public class TicTacToe extends JFrame {
         leftPlayerLabel.setText(whoStartsLabel);
         rightPlayerLabel.setText((whoStartsLabel.contains("You")) ? "<html><label>BOT<br>" + botSymbol + "</label></html>" : "<html><label>You<br>" + playerSymbol + "</label></html>");
         mainLabel.setText((whoStarts == 0) ? "Your Turn" : "BOT Turn");
-        if (whoStarts == 1) {
-            enableGameButtons(false);
-            botTurn();
-            enableGameButtons(true);
-        }
+        if (whoStarts == 1) botTurn();
     }
 
     private void styleLabel(JLabel label, Color fontColor) {
@@ -67,12 +76,21 @@ public class TicTacToe extends JFrame {
         label.setBackground(Color.WHITE);
     }
 
+    private void initStartButton(JButton startButton) {
+        startButton.setFocusable(false);
+        startButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        startButton.setBackground(Color.RED);
+        startButton.setForeground(Color.WHITE);
+        startButton.setFont(new Font("Arial", Font.BOLD, 25));
+        startButton.addActionListener(listener);
+    }
+
     private void initRestartButton(JButton restartButton) {
         restartButton.setFocusable(false);
         restartButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
         restartButton.setBackground(Color.GREEN);
         restartButton.setForeground(Color.RED);
-        restartButton.addActionListener(new Listener());
+        restartButton.addActionListener(listener);
     }
 
     private void initGameButtons(JPanel mainPanel) {
@@ -103,15 +121,27 @@ public class TicTacToe extends JFrame {
     private void enableGameButtons(boolean enable) {
         for (JButton gameButton : gameButtons) {
             gameButton.setBackground(Color.WHITE);
-            if (enable) {
-                gameButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
-                gameButton.addMouseListener(listener);
-                gameButton.addActionListener(listener);
-            } else {
-                gameButton.setCursor(null);
-                gameButton.removeMouseListener(listener);
-                gameButton.removeActionListener(listener);
-            }
+            changeGameButtonState(gameButton, enable);
+        }
+    }
+
+    private void changeGameButtonState(JButton gameButton, boolean state) {
+        if(state) {
+            gameButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+            gameButton.addMouseListener(listener);
+            gameButton.addActionListener(listener);
+        }
+        else {
+            gameButton.setCursor(null);
+            gameButton.removeMouseListener(listener);
+            gameButton.removeActionListener(listener);
+        }
+    }
+
+    private void resetGameButtons() {
+        for (JButton gameButton : gameButtons) {
+            gameButton.setText("");
+            gameButton.setBackground(Color.WHITE);
         }
     }
 
@@ -130,6 +160,7 @@ public class TicTacToe extends JFrame {
     }
 
     private void botTurn() {
+        this.setEnabled(false);
         mainLabel.setText("BOT Turn");
         if (isWin(botSymbol)[0] == null && isWin(playerSymbol)[0] == null && !isTie()) {
             int randomPos = botIntelligence();
@@ -137,7 +168,6 @@ public class TicTacToe extends JFrame {
                 java.util.List<Integer> possiblePlaces = getPossiblePlaces();
                 randomPos = possiblePlaces.get((int) (Math.random() * possiblePlaces.size()));
             }
-            this.setEnabled(false);
             Timer timer = createTimerForBOT(randomPos);
             timer.start();
         }
@@ -155,9 +185,7 @@ public class TicTacToe extends JFrame {
         final Timer timer = new Timer(2000, e -> {
             gameButtons[randomPos].setText(botSymbol);
             gameButtons[randomPos].setForeground(Color.RED);
-            gameButtons[randomPos].removeActionListener(listener);
-            gameButtons[randomPos].removeMouseListener(listener);
-            gameButtons[randomPos].setCursor(null);
+            changeGameButtonState(gameButtons[randomPos], false);
             Object[] places = isWin(botSymbol);
             if (places[0] != null) endGame(places, "BOT Wins");
             else if (isTie()) endGame(places, "TIE!");
@@ -223,23 +251,26 @@ public class TicTacToe extends JFrame {
 
         public void actionPerformed(ActionEvent event) {
             JButton clickedButton = (JButton) event.getSource();
-            if (clickedButton.getActionCommand().equals("gameButton")) {
+            if(clickedButton.getActionCommand().equals("Start Game")) {
+                SwingUtilities.invokeLater(() -> {
+                    TicTacToe.this.getContentPane().removeAll();
+                    TicTacToe.this.getContentPane().revalidate();
+                    TicTacToe.this.getContentPane().repaint();
+                    initGameElements();
+                });
+            }
+            else if (clickedButton.getActionCommand().equals("gameButton")) {
                 clickedButton.setText(playerSymbol);
                 clickedButton.setForeground(Color.BLUE);
                 clickedButton.setBackground(Color.WHITE);
-                clickedButton.removeActionListener(listener);
-                clickedButton.removeMouseListener(listener);
-                clickedButton.setCursor(null);
+                changeGameButtonState(clickedButton, false);
 
                 Object[] places = isWin(playerSymbol);
                 if (places[0] != null) endGame(places, "You Win");
                 else if (isTie()) endGame(places, "TIE!");
                 else botTurn();
             } else if (clickedButton.getActionCommand().equals("Restart Game")) {
-                for (JButton gameButton : gameButtons) {
-                    gameButton.setText("");
-                    gameButton.setBackground(Color.WHITE);
-                }
+                resetGameButtons();
                 initGame();
                 enableGameButtons(true);
             }
